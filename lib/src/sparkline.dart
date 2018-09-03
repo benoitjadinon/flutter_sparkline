@@ -74,6 +74,8 @@ class Sparkline extends StatelessWidget {
     this.gridLineWidth = 0.5,
     this.gridLineLabelColor = Colors.grey,
     this.labelPrefix = "\$",
+    this.min,
+    this.max,
   })  : assert(data != null),
         assert(lineWidth != null),
         assert(lineColor != null),
@@ -182,6 +184,9 @@ class Sparkline extends StatelessWidget {
   /// Symbol prefix for grid line labels
   final String labelPrefix;
 
+  final double min;
+  final double max;
+
   @override
   Widget build(BuildContext context) {
     return new LimitedBox(
@@ -206,7 +211,9 @@ class Sparkline extends StatelessWidget {
           gridLineAmount: gridLineAmount,
           gridLineLabelColor: gridLineLabelColor,
           gridLineWidth: gridLineWidth,
-          labelPrefix: labelPrefix
+          labelPrefix: labelPrefix,
+          min: min,
+          max: max,
         ),
       ),
     );
@@ -231,9 +238,13 @@ class _SparklinePainter extends CustomPainter {
     this.gridLineAmount,
     this.gridLineWidth,
     this.gridLineLabelColor,
-    this.labelPrefix
-    })  : _max = dataPoints.reduce(math.max),
-      _min = dataPoints.reduce(math.min);
+    this.labelPrefix,
+    double min,
+    double max,
+    }) :
+      _max = !(max == null || max.isNaN) ? max : dataPoints.reduce((a,b) => math.max(a.isNaN ? 0.0 : a, b.isNaN ? 0.0 : b)),
+      _min = !(max == null || min.isNaN) ? min : dataPoints.reduce((a,b) => math.min(a.isNaN ? double.maxFinite : a, b.isNaN ? double.maxFinite : b))
+    ;
 
   final List<double> dataPoints;
 
@@ -332,22 +343,27 @@ class _SparklinePainter extends CustomPainter {
 
     for (int i = 0; i < dataPoints.length; i++) {
       double x = i * widthNormalizer + lineWidth / 2;
-      double y =
-          height - (dataPoints[i] - _min) * heightNormalizer + lineWidth / 2;
+      double y = 0.0;
 
-      if (pointsMode == PointsMode.all) {
-        points.add(new Offset(x, y));
+      if (!dataPoints[i].isNaN) {
+        y = height - (dataPoints[i] - _min) * heightNormalizer + lineWidth / 2;
+
+        if (pointsMode == PointsMode.all) {
+          points.add(new Offset(x, y));
+        }
+
+        if (pointsMode == PointsMode.last && i == dataPoints.length - 1) {
+          points.add(new Offset(x, y));
+        }
       }
+    }
 
-      if (pointsMode == PointsMode.last && i == dataPoints.length - 1) {
-        points.add(new Offset(x, y));
-      }
-
+    for (int i = 0; i < points.length; i++) {
       if (i == 0) {
-        startPoint = new Offset(x, y);
-        path.moveTo(x, y);
+        startPoint = points[i];
+        path.moveTo(startPoint.dx, startPoint.dy);
       } else {
-        path.lineTo(x, y);
+        path.lineTo(points[i].dx, points[i].dy);
       }
     }
 
