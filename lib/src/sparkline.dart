@@ -52,6 +52,7 @@ enum PointsMode {
 /// sparkline is in an unbounded space, it will size itself according to the
 /// given [fallbackWidth] and [fallbackHeight].
 class Sparkline extends StatelessWidget {
+
   /// Creates a widget that represents provided [data] in a Sparkline chart.
   Sparkline({
     Key key,
@@ -74,6 +75,7 @@ class Sparkline extends StatelessWidget {
     this.gridLineWidth = 0.5,
     this.gridLineLabelColor = Colors.grey,
     this.labelPrefix = "\$",
+    this.gridLines,
     this.min,
     this.max,
   })  : assert(data != null),
@@ -184,6 +186,10 @@ class Sparkline extends StatelessWidget {
   /// Symbol prefix for grid line labels
   final String labelPrefix;
 
+  /// Hardcoded gridlines
+  final List<double> gridLines;
+
+  /// Calculated automatically from values if omitted
   final double min;
   final double max;
 
@@ -212,6 +218,7 @@ class Sparkline extends StatelessWidget {
           gridLineLabelColor: gridLineLabelColor,
           gridLineWidth: gridLineWidth,
           labelPrefix: labelPrefix,
+          gridLines: gridLines,
           min: min,
           max: max,
         ),
@@ -221,6 +228,7 @@ class Sparkline extends StatelessWidget {
 }
 
 class _SparklinePainter extends CustomPainter {
+
   _SparklinePainter(
     this.dataPoints, {
     @required this.lineWidth,
@@ -239,6 +247,7 @@ class _SparklinePainter extends CustomPainter {
     this.gridLineWidth,
     this.gridLineLabelColor,
     this.labelPrefix,
+    this.gridLines,
     double min,
     double max,
     }) :
@@ -271,15 +280,20 @@ class _SparklinePainter extends CustomPainter {
   final double gridLineWidth;
   final Color gridLineLabelColor;
   final String labelPrefix;
+  final List<double> gridLines;
 
   List<TextPainter> gridLineTextPainters = [];
 
   update() {
-    if (enableGridLines) {
+    if (enableGridLines || gridLines != null) {
       double gridLineValue;
-      for (int i = 0; i < gridLineAmount; i++) {
-        // Label grid lines
-        gridLineValue = _max - (((_max - _min) / (gridLineAmount - 1)) * i);
+      int nb = gridLines != null ? gridLines.length : gridLineAmount;
+      for (int i = 0; i < nb; i++) {
+
+        if (gridLines != null)
+          gridLineValue = gridLines[i];
+        else
+          gridLineValue = _max - (((_max - _min) / (gridLineAmount - 1)) * i);
 
         String gridLineText;
         if (gridLineValue < 1) {
@@ -318,24 +332,27 @@ class _SparklinePainter extends CustomPainter {
       update();
     }
 
-    if (enableGridLines) {
+    if (enableGridLines || gridLines != null) {
       width = size.width - gridLineTextPainters[0].text.text.length * 6;
       Paint gridPaint = new Paint()
         ..color = gridLineColor
-        ..strokeWidth = gridLineWidth;
+        ..strokeWidth = gridLineWidth
+      ;
 
-      double gridLineDist = height / (gridLineAmount - 1);
+      int nb = gridLines != null ? gridLines.length : gridLineAmount;
+
+      double gridLineDist = height / (nb - 1);
       double gridLineY;
 
       // Draw grid lines
-      for (int i = 0; i < gridLineAmount; i++) {
-        gridLineY = (gridLineDist * i).round().toDouble();
+      for (int i = 0; i < nb; i++) {
+        gridLineY = gridLines != null ? height / 100 * gridLines[(nb-i-1).abs()] : (gridLineDist * i).round().toDouble();
         canvas.drawLine(new Offset(0.0, gridLineY),
             new Offset(width, gridLineY), gridPaint);
 
         // Label grid lines
         gridLineTextPainters[i]
-            .paint(canvas, new Offset(width + 2.0, gridLineY - 6.0));
+            .paint(canvas, new Offset(width + 2.0, gridLineY - 6.0)); // todo : centerY
       }
     }
 
